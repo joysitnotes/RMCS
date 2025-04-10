@@ -1,3 +1,4 @@
+
 from flask import Flask, Response, request, render_template, redirect, url_for, session
 import cv2
 import numpy as np
@@ -28,31 +29,39 @@ recording = False
 # Add motion only recording function 
 
 def record_video():
+    #Clip length
+    CLIPLENGTH = 18000
     global recording, wr_frame
 
- 
     folder_name = datetime.now().strftime("%d-%m-%Y")
     folder_path = os.path.join("D:\\", folder_name)
     os.makedirs(folder_path, exist_ok=True)
 
-
-    filename = datetime.now().strftime("%H-%M-%S") + ".mp4"
-    filepath = os.path.join(folder_path, filename)
-
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = None
+    start_time = time.time()  
 
     while recording:
         if wr_frame is not None:
             if out is None:
+                filename = datetime.now().strftime("%H-%M-%S") + ".mp4"
+                filepath = os.path.join(folder_path, filename)
                 height, width, _ = wr_frame.shape
                 out = cv2.VideoWriter(filepath, fourcc, 20.0, (width, height))
 
             out.write(wr_frame)
+
+            if time.time() - start_time >= CLIPLENGTH:
+                out.release() 
+                out = None  
+                start_time = time.time() 
+
         time.sleep(1 / 20.0) 
 
     if out:
-        out.release()
+        out.release()  
+
+
 
 def generate_frames():
     global last_frame

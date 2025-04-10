@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+
+#sudo cp ipcam.service /etc/systemd/system/ipcam.service
+sudo systemctl enable ipcam.service
+sudo systemctl start ipcam.service
+sudo systemctl daemon-reload
+

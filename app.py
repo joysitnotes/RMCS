@@ -3,6 +3,9 @@ import cv2
 import numpy as np
 from datetime import datetime
 import subprocess
+import threading
+import time
+import os
 
 app = Flask(__name__)
 app.secret_key = 'rmcscamerasystem'
@@ -16,12 +19,44 @@ camera = cv2.VideoCapture("http://192.168.137.158:5000/")
 
 camera.set(cv2.CAP_PROP_FPS, 20)
 
-
+recording = False
 motion_detection_enabled = False
 last_frame = None
+wr_frame = None
+recording = False
+
+# Add motion only recording function 
+
+def record_video():
+    global recording, wr_frame
+
+ 
+    folder_name = datetime.now().strftime("%d-%m-%Y")
+    folder_path = os.path.join("D:\\", folder_name)
+    os.makedirs(folder_path, exist_ok=True)
+
+
+    filename = datetime.now().strftime("%H-%M-%S") + ".mp4"
+    filepath = os.path.join(folder_path, filename)
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = None
+
+    while recording:
+        if wr_frame is not None:
+            if out is None:
+                height, width, _ = wr_frame.shape
+                out = cv2.VideoWriter(filepath, fourcc, 20.0, (width, height))
+
+            out.write(wr_frame)
+        time.sleep(1 / 20.0) 
+
+    if out:
+        out.release()
 
 def generate_frames():
     global last_frame
+    global wr_frame
     while True:
         success, frame = camera.read()
         if not success:
@@ -52,6 +87,7 @@ def generate_frames():
         cv2.putText(frame, current_time, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         #ret, buffer = cv2.imencode('.jpg', frame)
         ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        wr_frame = frame
         frame = buffer.tobytes()
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
@@ -92,6 +128,20 @@ def toggle_motion_detection():
     motion_detection_enabled = not motion_detection_enabled
     return ('', 204)
 
+
+@app.route('/start_recording', methods=['POST'])
+def start_recording():
+    global recording
+    if not recording:
+        recording = True
+        threading.Thread(target=record_video).start()
+    return ('', 204)
+
+@app.route('/stop_recording', methods=['POST'])
+def stop_recording():
+    global recording
+    recording = False
+    return ('', 204)
 
 @app.route('/download')
 def download():

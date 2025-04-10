@@ -5,13 +5,13 @@ from datetime import datetime
 import subprocess
 
 app = Flask(__name__)
-
+app.secret_key = 'rmcscamerasystem'
 
 # admin credentials
 ADMIN_USERNAME = "admin"
 PASS = "admin123"
 # camera
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture("http://192.168.137.158:5000/")
 
 
 camera.set(cv2.CAP_PROP_FPS, 20)
@@ -92,21 +92,6 @@ def toggle_motion_detection():
     motion_detection_enabled = not motion_detection_enabled
     return ('', 204)
 
-
-@app.route('/shell', methods=['GET', 'POST'])
-def web_shell():
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-
-    output = ""
-    if request.method == 'POST':
-        command = request.form.get('command')
-        try:
-            output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            output = e.output
-
-    return render_template('shell.html', output=output)
 
 @app.route('/download')
 def download():

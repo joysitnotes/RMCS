@@ -1,0 +1,15 @@
+[Unit]
+Description=Start Camera RTSP Stream
+After=network.target
+
+[Service]
+ExecStart=/bin/bash /path/to/start_cam.sh
+Restart=always
+User=pi
+Group=pi
+WorkingDirectory=/home/pi
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

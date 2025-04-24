@@ -24,6 +24,7 @@ Hardware:
   - External Storage (USB drive, SSD, HDD)
     
 Software:
+ - FFMPEG 
  - RMCS_CAM/app.py
    
 Create a Pushbullet account and add API key to RMCS_CAM/APPS/describe.py to enable notifications

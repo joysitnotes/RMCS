@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,94 +5,213 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RMCS CAM</title>
     <style>
-        body {
-            transition: background-color 0.5s, color 0.5s;
-            background-color: #121212; 
-            color: white; 
-            font-family: Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh; 
-            flex-direction: column;
-        }
+        
+body {
+    transition: background-color 0.5s, color 0.5s;
+    background-color: #121212;
+    color: white; 
+    font-family: Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; 
+    flex-direction: column;
+}
 
-        body.light-mode {
-            background-color: white; 
-            color: black; 
-        }        
+body.light-mode {
+    background-color: white; 
+    color: black; 
+}
 
-        .navbar {
-            background-color: #333;
-            padding: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
+.navbar {
+    background-color: #333;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
 
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            font-size: 16px;
-        }
+.navbar a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    font-size: 16px;
+}
 
-        .navbar .user-info {
-            color: white;
-            margin-right: 20px;
-        }
+.navbar .user-info {
+    color: white;
+    margin-right: 20px;
+}
 
-        .navbar button {
-            background: red;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            cursor: pointer;
-        }
+.navbar button {
+    background: red;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    cursor: pointer;
+}
 
-    
-        .video-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            max-width: 100%;
-            height: 100%;
-        }
+.video-feed {
+    width: 100%;
+    max-width: 640px; 
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: width 0.3s ease, height 0.3s ease;
+}
 
-        .video-feed {
-            width: 100%;
-            max-width: 640px;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
+.video-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
 
-        button {
-            margin-top: 10px;
-            padding: 10px;
-            font-size: 16px;
-        }
+/* Align the video size slider neatly */
+.video-size-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+}
 
-        #record-button {
-            background-color: green;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
+/* Styling the slider */
+#video-size {
+    width: 300px; /* Set a fixed width for the slider */
+}
 
-        #record-button.recording {
-            background-color: red;
-        }
-    </style>
+#videoSizeVal {
+    font-weight: bold;
+    margin-left: 10px;
+}
+/* Button container below video */
+.button-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+button {
+    margin: 10px;
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+/* Record button styles */
+#record-button, #motion-record-button {
+    background-color: green;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#record-button.recording, #motion-record-button.recording {
+    background-color: red;
+}
+
+#motion-record-button {
+    background-color: orange;
+}
+
+#lookout-button {
+    background-color: blue;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#lookout-button.recording {
+    background-color: red;
+}
+
+/* Slider container */
+.slider-container {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 8px;
+    color: white;
+    position: relative;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+
+.feature-status-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 800px;
+}
+
+.feature-toggle, .uptime-frame {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 12px;
+    width: 300px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+.feature-toggle label {
+    display: block;
+    margin: 10px 0;
+    font-size: 16px;
+}
+
+.toggle-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.toggle-btn:hover {
+    background-color: #0056b3;
+}
+
+.uptime-frame iframe {
+    width: 100%;
+    height: 100px;
+    border-radius: 8px;
+	color:white;
+}
+
+
+</style>
 </head>
 <body>
-    <!-- Nav Bar -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMCS CAM</title>
+	<link rel="icon" href="{{ url_for('static', filename='icons/RMCS.ico') }}" type="image/x-icon"> 
+    <link rel="stylesheet" href="style.css">  
+</head>
+<body>
+    <!-- Navigation Bar -->
     <div class="navbar">
         <a href="/index">Live</a>
         <a href="/download">Download Page</a>
@@ -104,44 +222,212 @@
     </div>
 
     <h1>RMCS CAM</h1>
- 
+    <!-- Video Container -->
     <div class="video-container">
         <img class="video-feed" src="{{ url_for('video_feed') }}" alt="Live Video Feed">
     </div>
-    <br>
-    <button id="toggle-motion">Toggle Motion Detection</button>
-    <button id="toggle-theme">Toggle Light/Dark Mode</button>
-    <button id="record-button">Start Recording</button>
 
-    <script>
-      
+    <!-- Button Container -->
+    <div class="button-container">
+        <button id="toggle-motion">Toggle Motion Highlight</button>
+        <button id="toggle-lookout-highlight" onclick="toggleLookoutHighlight()">Toggle AI Lookout Highlight</button>
+        <button id="toggle-theme">Toggle Light/Dark Mode</button>
+        <button id="record-button">Start Normal Recording</button>
+        <button id="motion-record-button">Start Motion Detection Recording</button>
+        <button id="lookout-button">Start AI Lookout Mode</button>
+    </div>
+
+	<!-- Video Size Control (Slider) -->
+	<div class="video-size-container">
+		<label for="video-size">Video Size: <span id="videoSizeVal">640</span></label><br>
+		<input type="range" id="video-size" min="640" max="1200" value="640">
+	</div>
+
+    <!-- Brightness and Contrast Slider Container -->
+    <div class="slider-container">
+        <label>Brightness: <span id="brightnessVal">30</span></label><br>
+        <input type="range" min="0" max="100" value="30" id="brightness"><br>
+
+        <label>Contrast: <span id="contrastVal">1.5</span></label><br>
+        <input type="range" min="1.0" max="3.0" step="0.1" value="1.5" id="contrast"><br>
+
+    </div>
+	
+
+
+<!-- Feature Toggles and System Status -->
+<div class="feature-status-container">
+    
+   
+    <div class="feature-toggle">
+        <h3>Feature Toggles</h3>
+        <form id="feature-toggle-form">
+            <label>
+                <input type="checkbox" id="toggle-voice"> Voice Alerts
+            </label><br><br>
+            <label>
+                <input type="checkbox" id="toggle-notify"> Push Notifications
+            </label><br><br>
+            <button type="submit" class="toggle-btn">Apply Changes</button>
+        </form>
+    </div>
+
+    <!-- Uptime Iframe -->
+    <div class="uptime-frame">
+        <h3>System Uptime</h3>
+        <iframe src="/uptime" width="100%" height="100" style="border:none;"></iframe>
+    </div>
+</div>
+
+
+
+
+
+<script>
+
+        // Toggle motion detection
         document.getElementById('toggle-motion').onclick = function() {
             fetch('/toggle_motion_detection', { method: 'POST' });
         };
 
-       
+        // Toggle between light and dark mode
         document.getElementById('toggle-theme').onclick = function() {
             document.body.classList.toggle('light-mode');
         };
 
-       
-        let isRecording = false;
-
+        // Normal recording
+        let isNormalRecording = false;
         document.getElementById('record-button').onclick = function() {
-            if (!isRecording) {
-              
+            if (!isNormalRecording) {
+                // Start normal recording
                 fetch('/start_recording', { method: 'POST' });
                 document.getElementById('record-button').classList.add('recording');
-                document.getElementById('record-button').textContent = 'Stop Recording';
-                isRecording = true;
+                document.getElementById('record-button').textContent = 'Stop Normal Recording';
+                isNormalRecording = true;
+
+                // Disable motion recording if normal recording is started
+                document.getElementById('motion-record-button').disabled = true;
+                document.getElementById('lookout-button').disabled = true;
             } else {
-               
+                // Stop normal recording
                 fetch('/stop_recording', { method: 'POST' });
                 document.getElementById('record-button').classList.remove('recording');
-                document.getElementById('record-button').textContent = 'Start Recording';
-                isRecording = false;
+                document.getElementById('record-button').textContent = 'Start Normal Recording';
+                isNormalRecording = false;
+
+                // Enable motion recording again if normal recording is stopped
+                document.getElementById('motion-record-button').disabled = false;
+                document.getElementById('lookout-button').disabled = false;
             }
         };
+
+        // Motion detection recording
+        let isMotionRecording = false;
+        document.getElementById('motion-record-button').onclick = function() {
+            if (!isMotionRecording) {
+                // Start motion detection recording
+                fetch('/start_motion_recording', { method: 'POST' });
+                document.getElementById('motion-record-button').classList.add('recording');
+                document.getElementById('motion-record-button').textContent = 'Stop Motion Detection Recording';
+                isMotionRecording = true;
+
+                // Disable normal recording if motion recording is started
+                document.getElementById('record-button').disabled = true;
+                document.getElementById('lookout-button').disabled = true;
+            } else {
+                // Stop motion detection recording
+                fetch('/stop_motion_recording', { method: 'POST' });
+                document.getElementById('motion-record-button').classList.remove('recording');
+                document.getElementById('motion-record-button').textContent = 'Start Motion Detection Recording';
+                isMotionRecording = false;
+
+                // Enable normal recording again if motion detection recording is stopped
+                document.getElementById('record-button').disabled = false;
+                document.getElementById('lookout-button').disabled = false;
+            }
+        };
+
+        // Lookout mode recording
+        let isLookoutRecording = false;
+        document.getElementById('lookout-button').onclick = function() {
+            if (!isLookoutRecording) {
+                // Start lookout recording
+                fetch('/start_lookout', { method: 'POST' });
+                document.getElementById('lookout-button').classList.add('recording');
+                document.getElementById('lookout-button').textContent = 'Stop AI Lookout Mode';
+                isLookoutRecording = true;
+
+                // Disable other recordings
+                document.getElementById('record-button').disabled = true;
+                document.getElementById('motion-record-button').disabled = true;
+            } else {
+                // Stop lookout recording
+                fetch('/stop_lookout', { method: 'POST' });
+                document.getElementById('lookout-button').classList.remove('recording');
+                document.getElementById('lookout-button').textContent = 'Start AI Lookout Mode';
+                isLookoutRecording = false;
+
+                // Enable other recordings
+                document.getElementById('record-button').disabled = false;
+                document.getElementById('motion-record-button').disabled = false;
+            }
+        };
+
+        // Toggle lookout highlight
+        function toggleLookoutHighlight() {
+            fetch('/toggle_lookout_highlight', { method: 'POST' });
+        }
+
+
+const sliders = ['brightness', 'contrast'];
+
+sliders.forEach(id => {
+  const slider = document.getElementById(id);
+  const label = document.getElementById(id + 'Val');
+
+  slider.addEventListener('input', () => {
+    // Update the value displayed next to the slider
+    label.textContent = slider.value;
+
+    // Send the updated values to the backend
+    fetch('/update_video_settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        brightness: document.getElementById('brightness').value,
+        contrast: document.getElementById('contrast').value,
+      })
+    });
+  });
+});
+
+document.getElementById('video-size').addEventListener('input', function() {
+    let videoFeed = document.querySelector('.video-feed');
+    let videoSize = this.value;
+
+    // Update video size and display the value
+    videoFeed.style.maxWidth = videoSize + 'px';
+    document.getElementById('videoSizeVal').textContent = videoSize;
+});
+
+
+
+document.getElementById('feature-toggle-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const voice = document.getElementById('toggle-voice').checked ? 1 : 0;
+    const notify = document.getElementById('toggle-notify').checked ? 1 : 0;
+
+    fetch('/toggle_features', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: voice, notify: notify })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert("Settings updated:\nVoice: " + data.voice + "\nNotify: " + data.notify);
+    });
+});
     </script>
 </body>
 </html>

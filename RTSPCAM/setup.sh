@@ -33,3 +33,8 @@ else
         echo "[-] FFmpeg installation failed."
     fi
 fi
+
+
+sudo chmod +x start_cam.sh
+sudo chmod +x enable
+sudo chmod +x disable

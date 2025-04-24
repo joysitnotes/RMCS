@@ -39,3 +39,4 @@ sed -i "s|ExecStart=.*|ExecStart=/bin/bash $(pwd)/start_cam.sh|" /etc/systemd/sy
 sudo chmod +x start_cam.sh
 sudo chmod +x enable
 sudo chmod +x disable
+./enable

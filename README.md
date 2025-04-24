@@ -1,7 +1,7 @@
-# RMCS_CAM
-Remote Mobile CCTV System for Red Teamers
+# <img src="static/images/RMCS.png" alt="RMCS Image" width="100" style="display:inline;"> RMCS_CAM 
+Remote AI Mobile CCTV System for Red Teamers
 
-A simple Flask CCTV system.
+
 
 # MOBILE RTSPCAMERA:
 Hardware:

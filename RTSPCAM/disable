@@ -1,0 +1,11 @@
+#!/bin/bash
+
+
+SERVICE_DIR="/etc/systemd/system"
+SERVICE_NAME="rtsp.service"
+
+
+echo "[*] Stopping the $SERVICE_NAME service..."
+sudo systemctl stop $SERVICE_NAME
+sudo systemctl disable $SERVICE_NAME
+echo "[+] Disabled $SERVICE_NAME"

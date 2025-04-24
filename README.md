@@ -12,6 +12,7 @@ Hardware:
   -  Power Bank
 
 Software:
+  - Remote.it (Raspberry pi agent)
   -  RTSP_CAM/*
 
 Download RTSPCAM folder to raspberry pi and change creadentials in .yml 
@@ -24,6 +25,7 @@ Hardware:
   - External Storage (USB drive, SSD, HDD)
     
 Software:
+ - Remote.it (TCP tunnel for secure remote feed access) 
  - FFMPEG 
  - RMCS_CAM/app.py
    

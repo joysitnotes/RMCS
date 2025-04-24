@@ -34,6 +34,7 @@ else
     fi
 fi
 
+sed -i "s|ExecStart=.*|ExecStart=/bin/bash $(pwd)/start_cam.sh|" /etc/systemd/system/start_cam.service
 
 sudo chmod +x start_cam.sh
 sudo chmod +x enable

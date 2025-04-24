@@ -23,7 +23,8 @@ Software:
 
 # Setup
 ## RTSPCAMERA (Raspberrypi 0 w 2):
-change creadentials in .yml 
+
+Download RTSPCAM folder to raspberry pi and change creadentials in .yml 
 
 run RTSPCAM/setup.sh on raspberrypi 0  w 2 to setup rtsp camera
 

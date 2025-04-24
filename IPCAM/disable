@@ -1,4 +1,0 @@
-#!/usr/bin/bash
-
-sudo systemctl stop ipcam.service
-

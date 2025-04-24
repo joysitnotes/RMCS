@@ -3,11 +3,11 @@ Remote Mobile CCTV System for Red Teamers
 
 A simple Flask CCTV system.
 
-# IPCAMERA:
+# MOBILE RTSPCAMERA:
 Hardware:
   -  Raspberry Pi 0 W 2
-  -  4G LTE Module
-  -  NV Camera
+  -  4G LTE Module (use OTG port ethernet for stable connection)
+  -  [Night Vision Camera IR CUT](https://www.amazon.co.uk/Dorhea-Raspberry-Camera-Automatic-Adjustable/dp/B07DNSKMZ1/ref=sr_1_9)
   -  Power Bank
 
 Software:

@@ -3,7 +3,8 @@ Remote AI Mobile CCTV System for Red Teamers
 
 
 
-# MOBILE RTSPCAMERA:
+# Setup:
+## MOBILE RTSPCAMERA (Raspberrypi 0 w 2):
 Hardware:
   -  Raspberry Pi 0 W 2
   -  4G LTE Module (use OTG port ethernet for stable connection)
@@ -11,24 +12,20 @@ Hardware:
   -  Power Bank
 
 Software:
-  -  IPCAM/app.py
-
-# C2 Server:
-Hardware:
-  - PC
-  - External Storage (USB drive, SSD, HDD)
-Software:
- - RMCS_CAM/app.py
-
-
-# Setup
-## RTSPCAMERA (Raspberrypi 0 w 2):
+  -  RTSP_CAM/*
 
 Download RTSPCAM folder to raspberry pi and change creadentials in .yml 
 
 run RTSPCAM/setup.sh on raspberrypi 0  w 2 to setup rtsp camera
 
-## CAMERA SERVER
+## C2 CAMERA SERVER
+Hardware:
+  - PC
+  - External Storage (USB drive, SSD, HDD)
+    
+Software:
+ - RMCS_CAM/app.py
+   
 Create a Pushbullet account and add API key to RMCS_CAM/APPS/describe.py to enable notifications
 
 download push bullet app and login 

@@ -1,4 +1,4 @@
-from flask import Flask, Response, request, render_template, redirect, url_for, session, jsonify
+from flask import Flask, Response, request, render_template, redirect, url_for, session, jsonify, send_from_directory, abort
 import cv2
 import numpy as np
 from datetime import datetime
@@ -10,37 +10,72 @@ import warnings
 from camera import VideoCamera
 from ultralytics import YOLO
 import subprocess
-
+import torch  
+from flask_cors import CORS
+from aiortc import RTCPeerConnection, RTCSessionDescription
+import json
+import uuid
+import asyncio
+import logging
+import signal
+import sys
 
 app = Flask(__name__)
 app.secret_key = 'rmcscamerasystem'
 
+pcs = set()
+
+#Privacy Mask
+CORS(app)
+mask_coordinates = []
+privacy = False
+mask = False
+MOTION_THRESHOLD = 500
+
 # AI Parameters
 CONFIDENCE_THRESHOLD = 0.6
 TARGET_CLASSES = ['person', 'car','bicycle','motorcycle','bus','train','truck']
+SELECTED_CLASSES = TARGET_CLASSES
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
 
+# Model settings
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f"Using device: {device}")
+
 model = YOLO("yolov8n.pt")
-# Enable cuda if present
-# model.to('cuda')
+if device == 'cuda':
+    model.to('cuda')
+
 class_names = model.names
-# Admin credentials
+# admin credentials
 ADMIN_USERNAME = "admin"
 PASS = "admin123"
-camera = VideoCamera()
+
+camType = 2
+
+if camType == 1: 
+    camera = VideoCamera()
+else:
+    camera = cv2.VideoCapture(0)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    camera.set(cv2.CAP_PROP_FPS, 15)
 
 # SETUP PATH
 current_path = os.path.abspath(__file__)
 STORAGE = os.path.splitdrive(current_path)[0]
 
+DIGESTED_DIR = f"{STORAGE}\\CCTVDIGEST"
+CCTVCLIPS = f"{STORAGE}\\CCTVCLIPS" 
+
 # Default Video Settings
 video_settings = {
     "brightness": 0,
-    "contrast": 0,
+    "contrast": 1.5,
 }
 
-# Global Variables
+# Global flags for different modes
 recording_continuous = False
 recording_motion = False
 recording_lookout = False
@@ -48,12 +83,13 @@ lookout_mode = False
 lookout_highlight_enabled = False
 wr_frame = None
 last_frame = None
-lookout_mode_enabled = False 
+lookout_mode_enabled = False
 motion_highlight_enabled = False
 motion_mode_enabled = False
 describe_frame = None
 voice = 0
 notify = 0
+digestday = ""
 
 app_start_time = time.time()
 
@@ -66,16 +102,48 @@ def stop_all_modes():
     motion_mode_enabed = False
     print("[+] All modes stopped.")
 
-# Function Continuous recording
+
+def signal_handler(sig, frame):
+    stop_all_modes()  
+    print("Exiting.....")
+    sys.exit(0)  
+
+def reset_camera():
+    stop_all_modes()
+    print("[*] All Modes Stopped")
+    global camera
+    try:
+        camera.restart()() 
+    except Exception as e:
+        print(f"Error releasing camera: {e}")
+
+    time.sleep(3)  
+
+    try:
+        camera = VideoCamera()  #  Restart camera
+        print("[+] Camera restarted successfully.")
+    except Exception as e:
+        print(f"[!] Failed to restart camera: {e}")
+        time.sleep(5)
+
+
+def cctv_digest(folder_name):
+    global digestday
+    DIGETSCCTVAPP = f"{STORAGE}\\APP\\CCTVDIGEST\\cctv_digest2.py"
+    print(f"[+] Starting CCTV Digest on day: {folder_name}")
+    process = subprocess.Popen(['python3',DIGETSCCTVAPP,str(folder_name)])
+
+
+# Function to handle continuous recording
 def record_video():
-    CLIPLENGTH = 1800  
+    CLIPLENGTH = 1800  # 30 minutes
     global recording_continuous, wr_frame
 
     folder_name = datetime.now().strftime("%d-%m-%Y")
     folder_path = os.path.join(f"{STORAGE}\\CCTV\\", folder_name)
     os.makedirs(folder_path, exist_ok=True)
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'H264')
     out = None
     start_time = time.time()
 
@@ -102,17 +170,23 @@ def record_video():
 # Motion Recording 
 
 def motion_mode_recording():
-    global wr_frame, recording_motion, motion_mode_enabled, last_frame, voice, notify
+    global wr_frame, recording_motion, motion_mode_enabled, last_frame, voice, notify, mask, MOTION_THRESHOLD
 
-    clip_length = 30 
-    folder_base = f"{STORAGE}\\CCTVMOTION"
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    clip_length = 30  # seconds
+    folder_base = f"{STORAGE}\\CCTVCLIPS"
+    fourcc = cv2.VideoWriter_fourcc(*'H264')
 
     while motion_mode_enabled:
         frame = wr_frame.copy()
         if frame is None:
             time.sleep(0.05)
             continue
+        
+        if mask:
+            for coord in mask_coordinates:
+                x, y = coord['x'], coord['y']
+                cv2.rectangle(frame, (x - 50, y - 50), (x + 50, y + 50), (0, 0, 0), -1)
+        
 
         # --- Motion Detection ---
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -127,13 +201,13 @@ def motion_mode_recording():
         thresh = cv2.dilate(thresh, None, iterations=2)
         contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        motion_detected = any(cv2.contourArea(c) > 500 for c in contours)
+        motion_detected = any(cv2.contourArea(c) > MOTION_THRESHOLD for c in contours)
         last_frame = gray
 
         if motion_detected and not recording_motion:
             print("[+] Motion detected, starting recording.")
             if voice == 1 or notify == 1:
-                describe_frame = frame.copy()
+                describe_frame = wr_frame.copy()
                 img_folder_base = f"{STORAGE}\\CCTVIMAGE"
                 img_folder_name = datetime.now().strftime("%d-%m-%Y")
                 img_folder_path = os.path.join(img_folder_base, img_folder_name)
@@ -144,8 +218,7 @@ def motion_mode_recording():
                 cv2.imwrite(img_file_path, describe_frame)
                 print(f"[+] Full Image Path: {img_file_path}")
 
-                DESCRIBE_APP = f"{STORAGE}\\APP\\describe.py"
-                #Implement ai describe
+                DESCRIBE_APP = f"{STORAGE}\\APP\\AIDESCRIBE\\describe.py"
                 print("[+] Describing Image")
                 process = subprocess.Popen(['python3',DESCRIBE_APP,img_file_path,str(voice),str(notify)])
             
@@ -170,7 +243,7 @@ def motion_mode_recording():
                     out.write(frame)
                     frame_count += 1
 
-                time.sleep(1 / 15) 
+                time.sleep(1 / 15)  
 
             out.release()
             recording_motion = False
@@ -181,11 +254,11 @@ def motion_mode_recording():
 
 
 def lookout_mode_recording():
-    global wr_frame, recording_lookout, lookout_mode_enabled, lookout_frame, voice, notify
+    global wr_frame, recording_lookout, lookout_mode_enabled, lookout_frame, voice, notify, mask, CONFIDENCE_THRESHOLD, SELECTED_CLASSES
 
-    clip_length = 30  
-    folder_base = f"{STORAGE}\\CCTVLOOKOUT"
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    clip_length = 30  # seconds
+    folder_base = f"{STORAGE}\\CCTVCLIPS"
+    fourcc = cv2.VideoWriter_fourcc(*'H264')
     confidence = 0
 
     frame_skip_rate = 15  
@@ -197,8 +270,13 @@ def lookout_mode_recording():
             time.sleep(0.05)
             continue
 
+        if mask:
+            for coord in mask_coordinates:
+                x, y = coord['x'], coord['y']
+                cv2.rectangle(frame, (x - 50, y - 50), (x + 50, y + 50), (0, 0, 0), -1)
         detected = False
 
+        
         if frame_counter % frame_skip_rate == 0:
             results = model(frame, verbose=False)[0]
 
@@ -208,9 +286,9 @@ def lookout_mode_recording():
                 class_id = int(data[5])
                 label = class_names[class_id]
 
-                if label in TARGET_CLASSES and confidence >= CONFIDENCE_THRESHOLD:
+                if label in SELECTED_CLASSES and confidence >= CONFIDENCE_THRESHOLD:
                     detected = True
-                    break 
+                    break  
 
         lookout_frame = frame
         frame_counter += 1
@@ -218,11 +296,10 @@ def lookout_mode_recording():
         if detected and not recording_lookout:
 
 
-            # if confidence >= 0.70:
-            if 1 == 1:
+            if voice == 1 or notify == 1:
                 print(f"[+] Confidence: {confidence}")
-                describe_frame = frame.copy()
-                img_folder_base = f"{STORAGE}\\CCTVLOOKOUTIMAGE"
+                describe_frame = wr_frame.copy()
+                img_folder_base = f"{STORAGE}\\CCTVIMAGE"
                 img_folder_name = datetime.now().strftime("%d-%m-%Y")
                 img_folder_path = os.path.join(img_folder_base, img_folder_name)
                 os.makedirs(img_folder_path, exist_ok=True)
@@ -232,8 +309,7 @@ def lookout_mode_recording():
                 cv2.imwrite(img_file_path, describe_frame)
                 print(f"[+] Full Image Path: {img_file_path}")
 
-                DESCRIBE_APP = f"{STORAGE}\\APP\\describe.py"
-                #Implement ai describe
+                DESCRIBE_APP = f"{STORAGE}\\APP\\AIDESCRIBE\\describe.py"
                 print("[+] Describing Image")
                 process = subprocess.Popen(['python3',DESCRIBE_APP,img_file_path,str(voice),str(notify)])
             
@@ -249,7 +325,7 @@ def lookout_mode_recording():
             filepath = os.path.join(folder_path, filename)
 
             height, width, _ = frame.shape
-            out = cv2.VideoWriter(filepath, fourcc, 15, (width, height))  
+            out = cv2.VideoWriter(filepath, fourcc, 30, (width, height))  
 
             start_time = time.time()
             frame_count = 0
@@ -267,118 +343,121 @@ def lookout_mode_recording():
             print("[+] Lookout recording finished.")
             print(f"[+] Total frames written: {frame_count}")
 
-# Function to generate frames from the camera
+
+
+
+
+
 def generate_frames():
-    global last_frame, wr_frame, lookout_highlight_enabled, recording_lookout, lookout_frame, lookout_mode_enabled, motion_hilight_enabled, video_settings
-    global lookout_lock, lookout_frame, camera
-    FRAME_SKIP = 5  
+    global last_frame, wr_frame, lookout_highlight_enabled, recording_lookout
+    global lookout_mode_enabled, motion_highlight_enabled, video_settings
+    global lookout_lock, lookout_frame, camera, privacy, mask_coordinates
+    global MOTION_THRESHOLD, CONFIDENCE_THRESHOLD, class_names, model, motion_mode_enabed
+
+    FRAME_SKIP = 2
     frame_count = 0
-    mode_text = None
+    last_gray = None
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+
     while True:
-        success, frame = camera.get_frame()
+        if camType == 1:        
+            success, frame = camera.get_frame()
+        else:
+            success, frame = camera.read()
 
         if not success:
             print("[-] Camera Read Error: Restarting stream...")
             try:
-                camera.__del__()  
-            except Exception as e:
-                print(f"Error releasing camera: {e}")
-
-            time.sleep(3) 
-
-            try:
-                camera = VideoCamera() 
-                print("[+] Camera restarted successfully.")
+                camera.restart()
+                time.sleep(2)
+                # camera = VideoCamera()
                 continue
             except Exception as e:
-                print(f"[!] Failed to restart camera: {e}")
+                print(f"[!] Camera restart failed: {e}")
                 time.sleep(5)
                 continue
+        
 
+        contrast = video_settings.get("contrast", 1.5)
+        brightness = video_settings.get("brightness", 0)
+        frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=brightness)
 
-        # ADD mode text
+        # Privacy masking
+        if privacy and mask_coordinates:
+            for coord in mask_coordinates:
+                x, y = coord['x'], coord['y']
+                cv2.rectangle(frame, (x - 50, y - 50), (x + 50, y + 50), (0, 0, 0), -1)
+
+        # Timestamp and mode
+        mode_text = "Mode"
         if recording_continuous:
             mode_text = "REC"
         elif motion_mode_enabled:
             mode_text = "MOTION"
         elif lookout_mode_enabled:
             mode_text = "AI"
-        else:
-            mode_text = "None"
 
-        frame_count += 1
-        frame = cv2.convertScaleAbs(frame, alpha=video_settings["contrast"], beta=video_settings["brightness"])
-        current_time = datetime.now().strftime(" %d-%m-%Y %H:%M:%S %a %p")
-        cv2.putText(frame, current_time, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (255, 255, 255), 1)
+        current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S %a %p")
+        cv2.putText(frame, current_time, (10, frame.shape[0] - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-
-        # Display the mode in the top right corner
         if mode_text:
             text_size = cv2.getTextSize(mode_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
             text_x = frame.shape[1] - text_size[0] - 10
             text_y = 25
-            cv2.rectangle(frame, (text_x - 5, text_y - 20), (text_x + text_size[0] + 5, text_y + 5), (0, 0, 0), -1)
+            cv2.rectangle(frame, (text_x - 5, text_y - 20), 
+                                 (text_x + text_size[0] + 5, text_y + 5), 
+                                 (0, 0, 0), -1)
             cv2.putText(frame, mode_text, (text_x, text_y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-        ai_frame = frame.copy()
-          # --- MOTION DETECTION HILIGHT---
-        if motion_highlight_enabled:
+        # Motion detection
+        if motion_highlight_enabled and frame_count % FRAME_SKIP == 0:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-            if last_frame is None:
-                last_frame = gray
-                continue
+            if last_gray is None:
+                last_gray = gray
+            else:
+                delta = cv2.absdiff(last_gray, gray)
+                thresh = cv2.threshold(delta, 25, 255, cv2.THRESH_BINARY)[1]
+                thresh = cv2.dilate(thresh, None, iterations=2)
+                contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            frame_delta = cv2.absdiff(last_frame, gray)
-            thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
-            thresh = cv2.dilate(thresh, None, iterations=2)
-            contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for contour in contours:
-                if cv2.contourArea(contour) < 500:
-                    continue
-                (x, y, w, h) = cv2.boundingRect(contour)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-              
-            last_frame = gray
-        # -----AI Human and car Hilight ----
-        if lookout_highlight_enabled:
-            detected_objects = []
+                for c in contours:
+                    if cv2.contourArea(c) < MOTION_THRESHOLD:
+                        continue
+                    (x, y, w, h) = cv2.boundingRect(c)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                last_gray = gray
+
+        # AI detection
+        if lookout_highlight_enabled and frame_count % FRAME_SKIP == 0:
             results = model(frame, verbose=False)[0]
-            # Analyze all detections
             for data in results.boxes.data.tolist():
                 xmin, ymin, xmax, ymax = map(int, data[:4])
                 confidence = float(data[4])
                 class_id = int(data[5])
                 label = class_names[class_id]
 
-                # Check confidence 
-                if label in TARGET_CLASSES and confidence >= CONFIDENCE_THRESHOLD:
-                    detected_objects.append((label, (xmin, ymin, xmax, ymax), confidence))
-                    color = GREEN if label == 'person' else RED
+                if label in SELECTED_CLASSES and confidence >= CONFIDENCE_THRESHOLD:
+                    color = (0, 255, 0) if label == 'person' else (0, 0, 255)
                     cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
                     cv2.putText(frame, f"{label} {confidence:.2f}", (xmin, ymin - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-        
 
-        # ---------------TEST------------------
-
-        # if lookout_highlight_enabled:
-        #     frame = ai_detect(frame)
         
         wr_frame = frame.copy()
-        
-        ret, buffer = cv2.imencode('.jpg', frame)
 
-              
+        ret, buffer = cv2.imencode('.jpg', frame, encode_param)
+        if not ret:
+            continue
         frame = buffer.tobytes()
-        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        frame_count += 1
 
-
-
-
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
 
@@ -405,17 +484,12 @@ def logout():
 def index():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
-    return render_template('index.html')
+    return render_template('index.html', TARGET_CLASSES=TARGET_CLASSES, SELECTED_CLASSES=SELECTED_CLASSES)
 
-@app.route('/video_feed')
-def video_feed():
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
-    stop_all_modes() 
+    stop_all_modes()
 
     global recording_continuous
     if not recording_continuous:
@@ -432,7 +506,7 @@ def stop_recording():
 
 @app.route('/start_motion_recording', methods=['POST'])
 def start_motion_recording():
-    stop_all_modes()  
+    stop_all_modes() 
 
     global motion_mode_enabled, recording_motion
     motion_mode_enabled = True
@@ -491,21 +565,31 @@ def toggle_lookout_highlight():
 @app.route('/uptime')
 def uptime():
     uptime_seconds = time.time() - app_start_time
-    return f"Uptime: {str(timedelta(seconds=int(uptime_seconds)))}"
-# Implement Download
+    uptime_str = str(timedelta(seconds=int(uptime_seconds)))
+    return jsonify(uptime=uptime_str)
+
 @app.route('/download')
 def download():
     return render_template('download.html')
 
+
+
 @app.route('/update_video_settings', methods=['POST'])
 def update_video_settings():
-    global video_settings
+    global video_settings, CONFIDENCE_THRESHOLD, MOTION_THRESHOLD
     data = request.get_json()
     
     video_settings["brightness"] = int(data.get("brightness", 0))
     video_settings["contrast"] = float(data.get("contrast", 0))
+    
+    CONFIDENCE_THRESHOLD = float(data.get("aiConfidence", 60)) / 100.0 
+    MOTION_THRESHOLD = int(data.get("motionSensitivity", 500)) 
 
+    print(f"Updated: Brightness={video_settings['brightness']}, Contrast={video_settings['contrast']}, "
+          f"AIConfidence={CONFIDENCE_THRESHOLD}, MotionThreshold={MOTION_THRESHOLD}")
+    
     return jsonify(success=True)
+
 
 @app.route('/toggle_features', methods=['POST'])
 def toggle_features():
@@ -515,7 +599,148 @@ def toggle_features():
     notify = int(data.get('notify', 0))
     return jsonify({'voice': voice, 'notify': notify})
 
-if __name__ == '__main__':
-    
-    app.run(host='127.0.0.1', port=5000, threaded=True)
 
+@app.route('/reset_camera', methods=['POST'])
+def camera_reset():
+    reset_camera()
+    return '',204
+
+
+
+@app.route('/digest')
+def digest():
+    
+    directory_path = f"{STORAGE}\\CCTV"  
+    folders = [name for name in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, name))]
+    
+    return render_template('digest.html', folders=folders)
+
+@app.route('/day/<folder_name>')
+def day(folder_name):
+    cctv_digest(folder_name)
+    return redirect(url_for('index'))
+
+
+@app.route("/set_mask", methods=["POST"])
+def set_mask():
+    global privacy, mask, mask_coordinates
+    data = request.json
+    mask_coordinates = data['coordinates']
+    privacy = data['privacy']
+    mask = True
+    print(f"[+] Received coordinates")
+    print(f"[+] Privacy mask status: {privacy}")
+    print(f"[+] Mask status: {mask}")
+    
+    return {"status": "success"}
+
+@app.route("/get_mask", methods=["GET"])
+def get_mask():
+    return jsonify({"coordinates": mask_coordinates})
+
+@app.route("/disable_mask", methods=["POST"])
+def disable_mask():
+    global privacy, mask, mask_coordinates
+    privacy = False
+    mask = False
+    mask_coordinates = []  
+    print("[+] Privacy mask disabled.")
+    
+    return {"status": "success"}
+
+async def offer_async():
+    params = await request.json
+    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+
+    pc = RTCPeerConnection()
+
+    pc_id = "PeerConnection(%s)" % uuid.uuid4()
+    pc_id = pc_id[:8]
+
+
+    await pc.createOffer(offer)
+    await pc.setLocalDescription(offer)
+
+    response_data = {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
+
+    return jsonify(response_data)
+
+def offer():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    future = asyncio.run_coroutine_threadsafe(offer_async(), loop)
+    return future.result()
+
+@app.route('/offer', methods=['POST'])
+def offer_route():
+    return offer()
+
+@app.route('/video_feed')
+def video_feed():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.route('/digested')
+def digested():
+    
+    date_folders = [f for f in os.listdir(DIGESTED_DIR) if os.path.isdir(os.path.join(DIGESTED_DIR, f))]
+    return render_template('digested.html', date_folders=date_folders)
+
+@app.route('/<date_folder>')
+def show_date_folder(date_folder):
+    date_folder_path = os.path.join(DIGESTED_DIR, date_folder)
+    if not os.path.exists(date_folder_path) or not os.path.isdir(date_folder_path):
+        return abort(404)
+
+    category_folders = [f for f in os.listdir(date_folder_path) if os.path.isdir(os.path.join(date_folder_path, f))]
+    return render_template('date_folder.html', date_folder=date_folder, category_folders=category_folders)
+
+@app.route('/<date_folder>/<category_folder>')
+def show_category_folder(date_folder, category_folder):
+    category_folder_path = os.path.join(DIGESTED_DIR, date_folder, category_folder)
+    if not os.path.exists(category_folder_path) or not os.path.isdir(category_folder_path):
+        return abort(404)
+
+    images = [f for f in os.listdir(category_folder_path) if f.lower().endswith(('jpg', 'jpeg', 'png', 'gif'))]
+    return render_template('category_folder.html', date_folder=date_folder, category_folder=category_folder, images=images)
+
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    return send_from_directory(DIGESTED_DIR, filename)
+
+
+# CLIPS DISPLAY
+@app.route('/clips')
+def clips():
+    
+    day_folders = [f for f in os.listdir(CCTVCLIPS) if os.path.isdir(os.path.join(CCTVCLIPS, f))]
+    return render_template('clips.html', day_folders=day_folders)
+
+@app.route('/videos/<folder>')
+def videos(folder):
+    # List all video files in the selected day folder
+    day_folder_path = os.path.join(CCTVCLIPS, folder)
+    videos = [f for f in os.listdir(day_folder_path) if f.endswith(('.mp4', '.avi', '.mov', '.mkv'))]
+    return render_template('videos.html', folder=folder, videos=videos)
+
+@app.route('/videos/<path:folder>/<path:filename>')
+def video(folder, filename):
+    # Serve the video file from the specified folder
+    return send_from_directory(os.path.join(CCTVCLIPS, folder), filename)
+
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    global SELECTED_CLASSES
+    SELECTED_CLASSES = request.form.getlist('items') 
+    print("Selected items:", SELECTED_CLASSES)  
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+
+    signal.signal(signal.SIGINT, signal_handler)
+    #app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='127.0.0.1', port=5000, threaded=True)

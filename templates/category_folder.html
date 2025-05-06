@@ -1,0 +1,52 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ category_folder }} in {{ date_folder }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: black; 
+            color: white;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px; 
+        }
+        .image-grid img {
+            width: 100%; 
+            height: auto;
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1); 
+        }
+        a {
+            text-decoration: none; 
+            color: white; 
+        }
+        a:hover {
+            color: #ccc; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Images in {{ category_folder }} ({{ date_folder }})</h1>
+    <div class="image-grid">
+        {% for image in images %}
+            <div>
+                <a href="{{ url_for('serve_image', filename=date_folder + '/' + category_folder + '/' + image) }}">
+                    <img src="{{ url_for('serve_image', filename=date_folder + '/' + category_folder + '/' + image) }}" alt="{{ image }}">
+                </a>
+                <br>
+                {{ image }}
+            </div>
+        {% endfor %}
+    </div>
+    <a href="{{ url_for('show_date_folder', date_folder=date_folder) }}">Back to categories</a>
+</body>
+</html>

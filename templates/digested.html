@@ -1,0 +1,35 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMCS DIGESTED</title>
+    <link rel="icon" href="{{ url_for('static', filename='icons/RMCS.ico') }}" type="image/x-icon"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="/index">Live</a>
+        <a href="/clips">Clips</a>
+        <a href="/digest">Digest</a>
+        <a href="/digested">Digested</a>
+        <span class="user-info">Logged in as: {{ session['username'] }}</span>
+        <form action="{{ url_for('logout') }}" method="get" style="display:inline;">
+            <button type="submit">Logout</button>
+        </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+    <h1>Select Day </h1>
+    
+
+    <div class="day-list">
+        {% for date_folder in date_folders %}
+            <a href="{{ url_for('show_date_folder', date_folder=date_folder) }}" class="day-item">{{ date_folder }}</a>
+        {% endfor %}
+    </div>
+</body>
+</html>
+
+

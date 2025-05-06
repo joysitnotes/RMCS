@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ url_for('static', filename='icons/RMCS.ico') }}" type="image/x-icon"> 
+    <title>Videos for {{ folder }}</title>
+    <style>
+        body {
+			transition: background-color 0.5s, color 0.5s;
+			background-color: #121212; 
+			color: white; 
+			font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .video-container {
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Videos for {{ folder }}</h1>
+    <div class="grid">
+        {% for video in videos %}
+            <div class="video-container">
+                <video controls>
+                    <source src="{{ url_for('video', folder=folder, filename=video) }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>{{ video }}</p>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

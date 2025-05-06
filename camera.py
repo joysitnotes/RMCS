@@ -1,52 +1,70 @@
-import subprocess
-import numpy as np
+
+import asyncio
+import threading
+import websockets
+import base64
 import cv2
+import numpy as np
 
 class VideoCamera:
-    def __init__(self):
-        self.width = 640  
-        self.height = 480
+    def __init__(self, uri="ws://IP:PORT", ping_interval=40):
+        self.uri = uri
+        self.frame = None
+        self.loop = asyncio.new_event_loop()
+        self.ping_interval = ping_interval 
+        self.ping_task = None
+d
+        self.thread = threading.Thread(target=self._start_ws_client, daemon=True)
+        self.thread.start()
 
-        # Add RTSP Camera URL, Password, IP and Port
-        rtsp_url = "rtsp://username:password@IP:8554/stream1"
+    def _start_ws_client(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_until_complete(self._receive_frames())
 
-        print("[+] FFMPEG: Initializing FFmpeg RTSP stream...")
+    async def _receive_frames(self):
+        while True:
+            try:
+                async with websockets.connect(self.uri, ping_interval=self.ping_interval) as websocket:
+                    print("[+] Connected to WebSocket server")
+                    
+                    self.ping_task = self.loop.create_task(self._send_pings(websocket))
 
-        self.ffmpeg_cmd = [
-            'ffmpeg',
-            '-fflags', 'nobuffer',
-            '-flags', 'low_delay',
-            '-rtsp_transport', 'tcp',
-            '-i', rtsp_url,
-            '-f', 'image2pipe',
-            '-pix_fmt', 'bgr24',
-            '-vcodec', 'rawvideo',
-            '-'
-        ]
+                    async for data in websocket:
+                        jpg_original = base64.b64decode(data)
+                        jpg_np = np.frombuffer(jpg_original, dtype=np.uint8)
+                        img = cv2.imdecode(jpg_np, cv2.IMREAD_COLOR)
+                        if img is not None:
+                            self.frame = img
+            except Exception as e:
+                print("[-] WebSocket error:", e)
+                await asyncio.sleep(5)
+            finally:
+                if self.ping_task:
+                    self.ping_task.cancel()
 
-        self.pipe = subprocess.Popen(
-            self.ffmpeg_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            bufsize=10**8
-        )
+    async def _send_pings(self, websocket):
+        while True:
+            try:
+                print("[+] Pinged")
+                await websocket.ping() 
+                await asyncio.sleep(self.ping_interval) 
+            except Exception as e:
+                print("[-] Ping error:", e)
+                break
 
     def get_frame(self):
-        last_valid_frame = None
-        flush_reads = 3 
-
-        for _ in range(flush_reads):
-            raw_image = self.pipe.stdout.read(self.width * self.height * 3)
-            if len(raw_image) == (self.width * self.height * 3):
-                last_valid_frame = np.frombuffer(raw_image, dtype=np.uint8).reshape((self.height, self.width, 3))
-
-        if last_valid_frame is None:
-            print("[-] Failed to grab frame")
+        if self.frame is not None:
+            return True, self.frame.copy()
+        else:
             return False, None
 
-        return True, last_valid_frame
+    async def close(self):
+        print("[*] Closing VideoCamera...")
+        if self.ping_task:
+            self.ping_task.cancel()
+        self.loop.stop()
+        await asyncio.sleep(0) 
 
-    def __del__(self):
-        if self.pipe:
-            self.pipe.terminate()
-            self.pipe.wait()
+    def restart(self):
+        asyncio.run(self.close()) 
+        self.__init__(self.uri, self.ping_interval)  

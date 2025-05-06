@@ -13,7 +13,7 @@ class VideoCamera:
         self.loop = asyncio.new_event_loop()
         self.ping_interval = ping_interval 
         self.ping_task = None
-d
+
         self.thread = threading.Thread(target=self._start_ws_client, daemon=True)
         self.thread.start()
 

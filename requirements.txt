@@ -10,3 +10,6 @@ ultralytics
 flask-cors
 aiortc
 websockets
+torch
+scikit-image
+imagehash

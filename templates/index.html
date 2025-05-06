@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RMCS CAM</title>
 	<link rel="icon" href="{{ url_for('static', filename='icons/RMCS.ico') }}" type="image/x-icon"> 
-	<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">  
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">  <!-- Link to CSS for cleaner code -->
+</head>
 <body>
     <!-- Navigation Bar -->
     <div class="navbar">
@@ -13,6 +14,7 @@
         <a href="/clips">Clips</a>
         <a href="/digest">Digest</a>
         <a href="/digested">Digested</a>
+        <!-- <span class="user-info">Logged in as: {{ session['username'] }}</span> -->
         <form action="{{ url_for('logout') }}" method="get" style="display:inline;">
             <button type="submit">Logout</button>
         </form>

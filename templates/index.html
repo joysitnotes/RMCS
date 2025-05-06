@@ -4,30 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RMCS CAM</title>
-
-</head>
-<body>
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RMCS CAM</title>
 	<link rel="icon" href="{{ url_for('static', filename='icons/RMCS.ico') }}" type="image/x-icon"> 
-    <link rel="stylesheet" href="style.css">  
-</head>
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">  
 <body>
     <!-- Navigation Bar -->
     <div class="navbar">
         <a href="/index">Live</a>
-        <a href="/download">Download Page</a>
-        <span class="user-info">Logged in as: {{ session['username'] }}</span>
+        <a href="/clips">Clips</a>
+        <a href="/digest">Digest</a>
+        <a href="/digested">Digested</a>
         <form action="{{ url_for('logout') }}" method="get" style="display:inline;">
             <button type="submit">Logout</button>
         </form>
     </div>
 
+    <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
     <h1>RMCS CAM</h1>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <!-- Video Container -->
     <div class="video-container">
         <img class="video-feed" src="{{ url_for('video_feed') }}" alt="Live Video Feed">
@@ -41,6 +33,7 @@
         <button id="record-button">Start Normal Recording</button>
         <button id="motion-record-button">Start Motion Detection Recording</button>
         <button id="lookout-button">Start AI Lookout Mode</button>
+        <button id="reset-camera-button">Reset Camera</button>
     </div>
 
 	<!-- Video Size Control (Slider) -->
@@ -49,13 +42,20 @@
 		<input type="range" id="video-size" min="640" max="1200" value="640">
 	</div>
 
-    <!-- Brightness and Contrast Slider Container -->
+    <!-- Slider Container -->
     <div class="slider-container">
         <label>Brightness: <span id="brightnessVal">30</span></label><br>
         <input type="range" min="0" max="100" value="30" id="brightness"><br>
 
         <label>Contrast: <span id="contrastVal">1.5</span></label><br>
         <input type="range" min="1.0" max="3.0" step="0.1" value="1.5" id="contrast"><br>
+		<!-- New AI Confidence Slider -->
+        <label for="ai-confidence">AI Confidence: <span id="ai-confidenceVal">60</span>%</label><br>
+        <input type="range" min="1" max="100" value="60" id="ai-confidence"><br>
+
+        <!-- New Motion Sensitivity Slider -->
+        <label for="motion-sensitivity">Motion Sensitivity: <span id="motion-sensitivityVal">500</span></label><br>
+        <input type="range" min="100" max="1000" value="500" id="motion-sensitivity"><br>
 
     </div>
 	
@@ -64,7 +64,7 @@
 <!-- Feature Toggles and System Status -->
 <div class="feature-status-container">
     
-   
+    <!-- Feature Checklist -->
     <div class="feature-toggle">
         <h3>Feature Toggles</h3>
         <form id="feature-toggle-form">
@@ -78,14 +78,32 @@
         </form>
     </div>
 
-    <!-- Uptime Iframe -->
-    <div class="uptime-frame">
-        <h3>System Uptime</h3>
-        <iframe src="/uptime" width="100%" height="100" style="border:none;"></iframe>
-    </div>
+
+<div class="feature-status-container">
+    <div class="feature-toggle">
+<h3>AI Target Classes</h3>
+<form action="/submit" method="POST">
+    {% for TARGET_CLASS in TARGET_CLASSES %}
+        <label>
+            <input type="checkbox" name="items" value="{{ TARGET_CLASS }}"
+            {% if TARGET_CLASS in SELECTED_CLASSES %} checked {% endif %}>
+            {{ TARGET_CLASS }}
+        </label><br>
+    {% endfor %}
+    <button type="submit">Submit</button>
+</form>
+</div>
+</div>
+<div class="uptime-frame">
+    <h3>System Uptime</h3>
+    <div id="uptime" class="uptime">Loading...</div>
 </div>
 
-
+<canvas id="canvas" width="640" height="480" style="border:1px solid red;"></canvas>
+	 <label for="privacy-checkbox">Enable Privacy Mask</label>
+    <input type="checkbox" id="privacy-checkbox" name="privacy-checkbox">    
+	<button onclick="sendMask()">Apply Mask</button>
+    <button onclick="disableMask()">Disable Mask</button>
 
 </body>
 </html>

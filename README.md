@@ -1,4 +1,4 @@
-# <img src="static/images/RMCS.png" alt="RMCS Image" width="100" style="display:inline;"> RMCS_CAM 
+# <img src="static/images/RMCS.png" alt="RMCS Image" width="100" style="display:inline;"> RMCS
 Remote AI Mobile CCTV System for Red Teamers
 
 

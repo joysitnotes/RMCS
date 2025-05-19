@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+sudo systemctl stop sockcam.service
+sudo systemctl disable sockcam.service

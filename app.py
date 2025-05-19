@@ -23,6 +23,7 @@ import sys
 app = Flask(__name__)
 app.secret_key = 'rmcscamerasystem'
 
+# Set to keep track of RTCPeerConnection instances
 pcs = set()
 
 #Privacy Mask
@@ -52,8 +53,8 @@ class_names = model.names
 ADMIN_USERNAME = "admin"
 PASS = "admin123"
 
-camType = 2
-
+# For testing with webcam camType == 2 for Remote WS camera camType == 1
+camType = 1
 if camType == 1: 
     camera = VideoCamera()
 else:
@@ -106,7 +107,7 @@ def stop_all_modes():
 def signal_handler(sig, frame):
     stop_all_modes()  
     print("Exiting.....")
-    sys.exit(0)  
+    sys.exit(0)  # Exit the program
 
 def reset_camera():
     stop_all_modes()
@@ -117,10 +118,10 @@ def reset_camera():
     except Exception as e:
         print(f"Error releasing camera: {e}")
 
-    time.sleep(3)  
+    time.sleep(3) 
 
     try:
-        camera = VideoCamera()  #  Restart camera
+        camera = VideoCamera() 
         print("[+] Camera restarted successfully.")
     except Exception as e:
         print(f"[!] Failed to restart camera: {e}")
@@ -219,6 +220,7 @@ def motion_mode_recording():
                 print(f"[+] Full Image Path: {img_file_path}")
 
                 DESCRIBE_APP = f"{STORAGE}\\APP\\AIDESCRIBE\\describe.py"
+                #Implement ai describe
                 print("[+] Describing Image")
                 process = subprocess.Popen(['python3',DESCRIBE_APP,img_file_path,str(voice),str(notify)])
             
@@ -276,7 +278,7 @@ def lookout_mode_recording():
                 cv2.rectangle(frame, (x - 50, y - 50), (x + 50, y + 50), (0, 0, 0), -1)
         detected = False
 
-        
+        # Skip some frames for detection to save CPU
         if frame_counter % frame_skip_rate == 0:
             results = model(frame, verbose=False)[0]
 
@@ -288,7 +290,7 @@ def lookout_mode_recording():
 
                 if label in SELECTED_CLASSES and confidence >= CONFIDENCE_THRESHOLD:
                     detected = True
-                    break  
+                    break 
 
         lookout_frame = frame
         frame_counter += 1
@@ -336,7 +338,7 @@ def lookout_mode_recording():
                     out.write(frame)
                     frame_count += 1
 
-                time.sleep(1 / 60)  
+                time.sleep(1 / 60) 
 
             out.release()
             recording_lookout = False
@@ -370,7 +372,7 @@ def generate_frames():
             try:
                 camera.restart()
                 time.sleep(2)
-                # camera = VideoCamera()
+              
                 continue
             except Exception as e:
                 print(f"[!] Camera restart failed: {e}")
@@ -447,9 +449,10 @@ def generate_frames():
                     cv2.putText(frame, f"{label} {confidence:.2f}", (xmin, ymin - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        
+     
         wr_frame = frame.copy()
 
+        # Encode for MJPEG
         ret, buffer = cv2.imencode('.jpg', frame, encode_param)
         if not ret:
             continue
@@ -489,7 +492,7 @@ def index():
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
-    stop_all_modes()
+    stop_all_modes()  # Stop all modes before starting a new one
 
     global recording_continuous
     if not recording_continuous:
@@ -506,7 +509,7 @@ def stop_recording():
 
 @app.route('/start_motion_recording', methods=['POST'])
 def start_motion_recording():
-    stop_all_modes() 
+    stop_all_modes()  # Stop any existing modes
 
     global motion_mode_enabled, recording_motion
     motion_mode_enabled = True
@@ -520,12 +523,12 @@ def start_motion_recording():
 def stop_motion_recording():
     global motion_mode_enabled, recording_motion
     motion_mode_enabled = False
-    recording_motion = False  
+    recording_motion = False  # Stop recording if running
     return ('', 204)
 
 @app.route('/start_lookout', methods=['POST'])
 def start_lookout():
-    stop_all_modes()  
+    stop_all_modes() 
 
     global lookout_mode, lookout_mode_enabled
 
@@ -542,7 +545,7 @@ def stop_lookout():
     global lookout_mode_enabled, recording_lookout, lookout_highlight_enabled
     lookout_mode_enabled = False
     recording_lookout = False
-    lookout_highlight_enabled = True  
+    lookout_highlight_enabled = False  
 
     return ('', 204)
 
@@ -609,8 +612,9 @@ def camera_reset():
 
 @app.route('/digest')
 def digest():
-    
-    directory_path = f"{STORAGE}\\CCTV"  
+ 
+    directory_path = f"{STORAGE}\\CCTV" 
+ 
     folders = [name for name in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, name))]
     
     return render_template('digest.html', folders=folders)
@@ -618,6 +622,7 @@ def digest():
 @app.route('/day/<folder_name>')
 def day(folder_name):
     cctv_digest(folder_name)
+   
     return redirect(url_for('index'))
 
 
@@ -638,6 +643,7 @@ def set_mask():
 def get_mask():
     return jsonify({"coordinates": mask_coordinates})
 
+# Route to disable the privacy mask
 @app.route("/disable_mask", methods=["POST"])
 def disable_mask():
     global privacy, mask, mask_coordinates
@@ -648,16 +654,20 @@ def disable_mask():
     
     return {"status": "success"}
 
+# Asynchronous function to handle offer exchange
 async def offer_async():
     params = await request.json
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
+    # Create an RTCPeerConnection instance
     pc = RTCPeerConnection()
 
+    # Generate a unique ID for the RTCPeerConnection
     pc_id = "PeerConnection(%s)" % uuid.uuid4()
     pc_id = pc_id[:8]
 
 
+    # Create and set the local description
     await pc.createOffer(offer)
     await pc.setLocalDescription(offer)
 
@@ -672,20 +682,22 @@ def offer():
     future = asyncio.run_coroutine_threadsafe(offer_async(), loop)
     return future.result()
 
+# Route to handle the offer request
 @app.route('/offer', methods=['POST'])
 def offer_route():
     return offer()
 
+# Route to stream video frames
 @app.route('/video_feed')
 def video_feed():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
+# Digested Routes
 @app.route('/digested')
 def digested():
-    
+    # List all date folders in the base directory
     date_folders = [f for f in os.listdir(DIGESTED_DIR) if os.path.isdir(os.path.join(DIGESTED_DIR, f))]
     return render_template('digested.html', date_folders=date_folders)
 
@@ -695,6 +707,7 @@ def show_date_folder(date_folder):
     if not os.path.exists(date_folder_path) or not os.path.isdir(date_folder_path):
         return abort(404)
 
+    # List all category folders
     category_folders = [f for f in os.listdir(date_folder_path) if os.path.isdir(os.path.join(date_folder_path, f))]
     return render_template('date_folder.html', date_folder=date_folder, category_folders=category_folders)
 
@@ -704,6 +717,7 @@ def show_category_folder(date_folder, category_folder):
     if not os.path.exists(category_folder_path) or not os.path.isdir(category_folder_path):
         return abort(404)
 
+    # List all images in the selected category folder
     images = [f for f in os.listdir(category_folder_path) if f.lower().endswith(('jpg', 'jpeg', 'png', 'gif'))]
     return render_template('category_folder.html', date_folder=date_folder, category_folder=category_folder, images=images)
 
@@ -715,7 +729,7 @@ def serve_image(filename):
 # CLIPS DISPLAY
 @app.route('/clips')
 def clips():
-    
+    # List all day folders
     day_folders = [f for f in os.listdir(CCTVCLIPS) if os.path.isdir(os.path.join(CCTVCLIPS, f))]
     return render_template('clips.html', day_folders=day_folders)
 
@@ -732,15 +746,16 @@ def video(folder, filename):
     return send_from_directory(os.path.join(CCTVCLIPS, folder), filename)
 
 
+
 @app.route('/submit', methods=['POST'])
 def submit():
     global SELECTED_CLASSES
     SELECTED_CLASSES = request.form.getlist('items') 
-    print("Selected items:", SELECTED_CLASSES)  
+    print("Selected items:", SELECTED_CLASSES) 
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
 
     signal.signal(signal.SIGINT, signal_handler)
-    #app.run(host='0.0.0.0', port=5000, threaded=True)
+ 
     app.run(host='127.0.0.1', port=5000, threaded=True)

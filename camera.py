@@ -11,7 +11,7 @@ class VideoCamera:
         self.uri = uri
         self.frame = None
         self.loop = asyncio.new_event_loop()
-        self.ping_interval = ping_interval 
+        self.ping_interval = ping_interval  
         self.ping_task = None
 
         self.thread = threading.Thread(target=self._start_ws_client, daemon=True)
@@ -37,7 +37,7 @@ class VideoCamera:
                             self.frame = img
             except Exception as e:
                 print("[-] WebSocket error:", e)
-                await asyncio.sleep(5)
+                await asyncio.sleep(5)  
             finally:
                 if self.ping_task:
                     self.ping_task.cancel()
@@ -46,7 +46,7 @@ class VideoCamera:
         while True:
             try:
                 print("[+] Pinged")
-                await websocket.ping() 
+                await websocket.ping()  
                 await asyncio.sleep(self.ping_interval) 
             except Exception as e:
                 print("[-] Ping error:", e)
@@ -66,5 +66,5 @@ class VideoCamera:
         await asyncio.sleep(0) 
 
     def restart(self):
-        asyncio.run(self.close()) 
-        self.__init__(self.uri, self.ping_interval)  
+        asyncio.run(self.close())  
+        self.__init__(self.uri, self.ping_interval) 

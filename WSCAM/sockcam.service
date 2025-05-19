@@ -1,0 +1,11 @@
+[Unit]
+Description=Raspberry Pi WEBSOCK Camera Stream
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/WEBSOCK/websock.py
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target

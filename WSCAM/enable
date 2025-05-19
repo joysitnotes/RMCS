@@ -1,0 +1,5 @@
+sudo  cp sockcam.service /etc/systemd/system/sockcam.service
+sudo systemctl enable sockcam.service
+sudo systemctl start sockcam.service
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload

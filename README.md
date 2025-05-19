@@ -29,7 +29,7 @@ Software:
  - FFMPEG 
  - RMCS_CAM/app.py
    
-Create a Pushbullet account and add API key to RMCS_CAM/APPS/describe.py to enable notifications
+Create a Pushbullet account and add API key to RMCS/APPS/describe.py to enable notifications
 
 download push bullet app and login 
 
